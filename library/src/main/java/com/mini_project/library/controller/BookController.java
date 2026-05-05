@@ -1,57 +1,77 @@
 package com.mini_project.library.controller;
 
-import com.mini_project.library.dto.BookRequest;
-import com.mini_project.library.entity.Book;
+import com.mini_project.library.dto.request.BookRequest;
+import com.mini_project.library.dto.response.ApiResponse;
+import com.mini_project.library.dto.response.BookResponse;
 import com.mini_project.library.service.BookService;
-import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-
-import java.util.List;
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/books")
+@RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Books", description = "Book catalog management")
 public class BookController {
 
     private final BookService bookService;
 
-    public BookController(BookService bookService) {
-        this.bookService = bookService;
-    }
-
-    @PostMapping("/test")
-    public String testBook(@RequestBody Map<String, Object> body) {
-        return "Received: " + body;
-    }
-
-    @PostMapping("/string-test")
-    public String test(@RequestBody String body) {
-        return body;
-    }
-
-    @PostMapping
-    public Book addBook(@RequestBody @Valid BookRequest request) {
-        Book book = new Book();
-        book.setTitle(request.title());
-        book.setAuthor(request.author());
-        book.setIsbn(request.isbn());
-
-        return bookService.addBook(book);
-    }
-
     @GetMapping
-    public List<Book> getAllBooks() {
-        return bookService.getAllBooks();
+    @Operation(summary = "Search and filter books (paginated)")
+    public ResponseEntity<ApiResponse<Page<BookResponse>>> searchBooks(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String author,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String isbn,
+            @RequestParam(defaultValue = "false") boolean availableOnly,
+            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(
+            bookService.searchBooks(title, author, category, isbn, availableOnly, pageable)));
     }
 
     @GetMapping("/{id}")
-    public Book getBookById(@PathVariable Long id) {
-        return bookService.getBookById(id);
+    @Operation(summary = "Get book by ID")
+    public ResponseEntity<ApiResponse<BookResponse>> getBookById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(bookService.getBookById(id)));
+    }
+
+    @GetMapping("/isbn/{isbn}")
+    @Operation(summary = "Get book by ISBN")
+    public ResponseEntity<ApiResponse<BookResponse>> getBookByIsbn(@PathVariable String isbn) {
+        return ResponseEntity.ok(ApiResponse.success(bookService.getBookByIsbn(isbn)));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','LIBRARIAN')")
+    @Operation(summary = "Add a new book to the catalog")
+    public ResponseEntity<ApiResponse<BookResponse>> createBook(@RequestBody @Valid BookRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success("Book created", bookService.createBook(request)));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','LIBRARIAN')")
+    @Operation(summary = "Update book details")
+    public ResponseEntity<ApiResponse<BookResponse>> updateBook(
+            @PathVariable Long id, @RequestBody @Valid BookRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Book updated", bookService.updateBook(id, request)));
     }
 
     @DeleteMapping("/{id}")
-    public String deleteBook(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN','LIBRARIAN')")
+    @Operation(summary = "Remove a book from the catalog")
+    public ResponseEntity<ApiResponse<Void>> deleteBook(@PathVariable Long id) {
         bookService.deleteBook(id);
-        return "Deleted";
+        return ResponseEntity.ok(ApiResponse.success("Book deleted", null));
     }
 }

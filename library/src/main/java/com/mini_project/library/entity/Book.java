@@ -1,54 +1,94 @@
 package com.mini_project.library.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
+@Table(name = "books")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Book {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, length = 255)
     private String title;
-    private String author;
+
+    @Column(unique = true, length = 20)
     private String isbn;
 
-    public Book(){}
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
-    public Book( long id, String title, String author, String isbn){
-        this.id=id;
-        this.title=title;
-        this.author=author;
-        this.isbn=isbn;
+    @Column(length = 120)
+    private String publisher;
+
+    @Column(name = "published_year")
+    private Integer publishedYear;
+
+    @Column(length = 50)
+    private String language;
+
+    @Column(name = "total_copies", nullable = false)
+    @Builder.Default
+    private int totalCopies = 1;
+
+    @Column(name = "available_copies", nullable = false)
+    @Builder.Default
+    private int availableCopies = 1;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "book_authors",
+        joinColumns = @JoinColumn(name = "book_id"),
+        inverseJoinColumns = @JoinColumn(name = "author_id")
+    )
+    @Builder.Default
+    private Set<Author> authors = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "book_categories",
+        joinColumns = @JoinColumn(name = "book_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    @Builder.Default
+    private Set<Category> categories = new HashSet<>();
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    public boolean isAvailable() {
+        return availableCopies > 0;
     }
 
-    public long getId() {
-        return id;
-    }
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-    public void setTitle(String title) {
-        this.title = title;
+    public void decrementAvailableCopies() {
+        if (availableCopies <= 0) {
+            throw new IllegalStateException("No copies available to borrow");
+        }
+        availableCopies--;
     }
 
-    public String getAuthor() {
-        return author;
-    }
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
-    public String getIsbn() {
-        return isbn;
-    }
-    public void setIsbn(String isbn) {
-        this.isbn = isbn;
+    public void incrementAvailableCopies() {
+        if (availableCopies >= totalCopies) {
+            throw new IllegalStateException("Available copies cannot exceed total copies");
+        }
+        availableCopies++;
     }
 }
