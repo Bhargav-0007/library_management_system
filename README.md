@@ -84,8 +84,8 @@ src/test/java/com/mini_project/library/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/library-management-system.git
-cd library-management-system/library
+git clone https://github.com/Bhargav-0007/library_management_system.git
+cd library_management_system/library
 ```
 
 ### 2. Run with dev profile (H2, no external DB needed)
